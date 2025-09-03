@@ -63,8 +63,8 @@ Training and test data use JSON format with parallel/non-parallel couplet pairs:
 ```json
 [
   {
-    "line1": "春眠不觉晓",
-    "line2": "处处闻啼鸟", 
+    "line1": "调笑辄酬答",
+    "line2": "嘲谑无惭沮", 
     "label": 1
   }
 ]
