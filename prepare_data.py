@@ -84,10 +84,9 @@ def load_test_data(test_file):
         
         test_couplets = set()
         for item in test_data:
-            # Create tuple pairs for both orders to catch duplicates regardless of order
             couplet = (item["line1"], item["line2"])
             test_couplets.add(couplet)
-            test_couplets.add((item["line2"], item["line1"]))  # Add reverse order too
+            test_couplets.add((item["line2"], item["line1"]))
         
         return test_couplets
     except FileNotFoundError:
@@ -103,7 +102,6 @@ def remove_test_duplicates(parallel_couplets, nonparallel_couplets, test_couplet
     original_parallel_count = len(parallel_couplets)
     original_nonparallel_count = len(nonparallel_couplets)
     
-    # Filter out duplicates
     filtered_parallel = [couplet for couplet in parallel_couplets if couplet not in test_couplets]
     filtered_nonparallel = [couplet for couplet in nonparallel_couplets if couplet not in test_couplets]
     
@@ -242,7 +240,6 @@ def main():
     )
     print(f"Extracted {len(parallel_couplets)} parallel and {len(nonparallel_couplets)} non-parallel couplets")
     
-    # Filter out test data duplicates if test data is provided
     if args.test_data:
         print(f"Loading test data from {args.test_data}...")
         test_couplets = load_test_data(args.test_data)

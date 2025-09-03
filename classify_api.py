@@ -13,9 +13,6 @@ from pathlib import Path
 from openai import OpenAI
 from tqdm import tqdm
 
-# No more predefined model configurations - users specify endpoint and model explicitly
-
-# System message and examples (kept intact as requested)
 SYSTEM_MESSAGE = """你是一位精通中国古典诗歌和诗学理论的专家。请严格评估以下两个诗句是否构成工整的对仗联句。评估标准如下：
 
 1. 结构对应：前后句相同位置的词语必须在句法结构上匹配
@@ -75,27 +72,22 @@ def is_already_classified(existing_results, line1, line2):
 
 def classify_couplet(client, model_name, line1, line2):
     """Classify a single couplet using the API."""
-    # Prepare message history
     messages = [{"role": "system", "content": SYSTEM_MESSAGE}]
     
-    # Add examples
     for example in EXAMPLES:
         messages.append({"role": "user", "content": example["user"]})
         messages.append({"role": "assistant", "content": example["assistant"]})
     
-    # Add current query
     messages.append({
         "role": "user",
         "content": f"句对：{line1}，{line2}。"
     })
     
-    # Get response
     response = client.chat.completions.create(
         messages=messages,
         model=model_name,
     )
     
-    # Extract reasoning and content
     reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
     content = response.choices[0].message.content
     
@@ -157,28 +149,23 @@ def main():
     
     args = parser.parse_args()
     
-    # Setup client
     client = OpenAI(
         api_key=args.api_key,
         base_url=args.endpoint
     )
     
-    # Determine if input is a file or a single couplet string
     is_single_couplet = not os.path.exists(args.input)
     
     if is_single_couplet:
-        # Parse single couplet
         try:
             line1, line2 = parse_single_couplet(args.input)
             couplets = [(line1, line2)]
             print(f"Processing single couplet: {line1}，{line2}")
             
-            # Setup output directory for single couplet
             model_dir = setup_output_directory(args.model)
             results_file = model_dir / f"{line1}，{line2}.json"
             print(f"Results will be saved to: {results_file}")
             
-            # No existing results for single couplet
             existing_results = []
             remaining_couplets = couplets
             
@@ -186,21 +173,17 @@ def main():
             print(f"Error parsing couplet: {e}")
             return
     else:
-        # Load from JSON file
         print(f"Loading couplets from: {args.input}")
         couplets = load_test_data(args.input)
         print(f"Found {len(couplets)} couplets")
         
-        # Setup output directory and file for batch processing
         output_dir = setup_output_directory()
         results_file = output_dir / f"{args.model}.json"
         print(f"Results will be saved to: {results_file}")
         
-        # Load existing results
         existing_results = get_existing_results(results_file)
         print(f"Found {len(existing_results)} existing results")
         
-        # Filter out already classified couplets
         remaining_couplets = []
         for line1, line2 in couplets:
             if not is_already_classified(existing_results, line1, line2):
@@ -210,9 +193,8 @@ def main():
     
     print(f"Processing {len(remaining_couplets)} couplets")
     
-    # Process couplets
     success_count = 0
-    all_results = existing_results.copy()  # Start with existing results
+    all_results = existing_results.copy()
     
     for line1, line2 in tqdm(remaining_couplets, desc="Classifying"):
         for attempt in range(args.max_retries):
@@ -220,7 +202,6 @@ def main():
                 reasoning, analysis = classify_couplet(client, args.model, line1, line2)
                 decision = extract_decision(analysis)
                 
-                # Create result object
                 couplet_text = f"{line1}，{line2}"
                 result = {
                     "couplet": couplet_text,
@@ -232,16 +213,14 @@ def main():
                     "endpoint": args.endpoint
                 }
                 
-                # Add reasoning if available (for models that support it)
                 if reasoning:
                     result["reasoning"] = reasoning
                 
-                # Add to results and save immediately
                 all_results.append(result)
                 save_results(results_file, all_results)
                 
                 success_count += 1
-                break  # Success
+                break
                 
             except Exception as e:
                 if attempt == args.max_retries - 1:

@@ -51,7 +51,6 @@ def build_character_network(parallel_couplets, min_degree=None):
 
     print(f"Initial network: {len(G.nodes())} nodes, {len(G.edges())} edges")
 
-    # Remove nodes with low degree if specified
     if min_degree:
         print(f"Filtering nodes with degree < {min_degree}...")
         while True:
