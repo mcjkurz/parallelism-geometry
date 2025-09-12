@@ -18,43 +18,44 @@ pip install -r requirements.txt
 2. **Prepare training data:**
 ```bash
 # Standard dataset (no community filtering)
-python prepare_data.py --input-dir data/poems --test-data data/test.json --output train.json
+python scripts/prepare_data.py --input-dir data/poems --test-data data/test.json --output train.json
 
 # Community-filtered dataset
-python make_communities.py --input train.json --output char_communities.json
-python prepare_data.py --input-dir data/poems --communities char_communities.json --test-data data/test.json --output train_filtered.json
+python scripts/make_communities.py --input train.json --output char_communities.json
+python scripts/prepare_data.py --input-dir data/poems --communities char_communities.json --test-data data/test.json --output train_filtered.json
 ```
 
 3. **Train model:**
 ```bash
 # Standard training
-python finetune.py --input train.json --model SIKU-BERT/sikubert --output models/standard
+python scripts/finetune.py --input train.json --model SIKU-BERT/sikubert --output models/standard
 
 # with community filtering
-python finetune.py --input train_filtered.json --model SIKU-BERT/sikubert --output models/filtered
+python scripts/finetune.py --input train_filtered.json --model SIKU-BERT/sikubert --output models/filtered
 ```
 
 4. **Evaluate model:**
 ```bash
-python evaluate.py --model models/standard/sikubert-parallelism-best --input test.json
+python scripts/evaluate.py --model models/standard/sikubert-parallelism-best --input test.json
 ```
 
 5. **Classify couplets using external APIs:**
 ```bash
 # Batch processing from JSON file
-python classify_api.py --input data/test.json --endpoint https://api.deepseek.com --model deepseek-reasoner --api-key YOUR_API_KEY
+python scripts/classify_api.py --input data/test.json --endpoint https://api.deepseek.com --model deepseek-reasoner --api-key YOUR_API_KEY
 
 # Single couplet classification
-python classify_api.py --input "中岁历三台，旬月典邦政" --endpoint https://api.poe.com/v1 --model Claude-Opus-4.1 --api-key YOUR_API_KEY
+python scripts/classify_api.py --input "中岁历三台，旬月典邦政" --endpoint https://api.poe.com/v1 --model Claude-Opus-4.1 --api-key YOUR_API_KEY
 ```
 
 ## Repository Contents
 
-- `prepare_data.py` - Extract couplets from poetry CSV files with optional test data filtering
-- `make_communities.py` - Character community detection using network analysis
-- `finetune.py` - Fine-tune BERT models for parallelism detection
-- `evaluate.py` - Evaluate trained models
-- `classify_api.py` - Classify couplets using external APIs (supports both batch JSON files and single couplet strings)
+- `scripts/` - Python scripts for data processing and model training
+  - `prepare_data.py` - Extract couplets from poetry CSV files with optional test data filtering
+  - `make_communities.py` - Character community detection using network analysis
+  - `finetune.py` - Fine-tune BERT models for parallelism detection
+  - `evaluate.py` - Evaluate trained models
+  - `classify_api.py` - Classify couplets using external APIs (supports both batch JSON files and single couplet strings)
 - `figures/` - Jupyter notebooks for generating paper figures
 
 ## Data Format
@@ -74,4 +75,4 @@ Where `label` is 1 for parallel couplets, 0 for non-parallel.
 
 ## Citation
 
-Kurzynski, M., Xu, X., & Feng, Y. (2025). The Game of Keys and Queries: Parallelism and Cognitive Geometry in Chinese Regulated Verse. *IJHAC: A Journal of Digital Humanities*, 19(2), 143-157. doi:10.3366/ijhac.2025.0355
+Kurzynski, Maciej, Xu, Xiaotong, & Feng, Yu. (2025). The Game of Keys and Queries: Parallelism and Cognitive Geometry in Chinese Regulated Verse. *IJHAC: A Journal of Digital Humanities*, 19(2), 143-157. doi:10.3366/ijhac.2025.0355
