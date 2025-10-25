@@ -1,6 +1,7 @@
 # parallelism-geometry
 
-This repository accompanies the article "The Game of Keys and Queries: Parallelism and Cognitive Geometry in Chinese Regulated Verse" by Maciej Kurzynski, Xiaotong Xu, and Yu Feng. [link](https://www.euppublishing.com/doi/abs/10.3366/ijhac.2025.0355)
+This repository accompanies the article "The Game of Keys and Queries: Parallelism and Cognitive Geometry in Chinese Regulated Verse" by Maciej Kurzynski, Xiaotong Xu, and Yu Feng. 
+[https://www.euppublishing.com/doi/abs/10.3366/ijhac.2025.0355](https://www.euppublishing.com/doi/abs/10.3366/ijhac.2025.0355)
 
 ## Abstract
 
