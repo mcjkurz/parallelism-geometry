@@ -3,9 +3,9 @@
 This repository accompanies the article "The Game of Keys and Queries: Parallelism and Cognitive Geometry in Chinese Regulated Verse" by Maciej Kurzynski, Xiaotong Xu, and Yu Feng. 
 [https://www.euppublishing.com/doi/abs/10.3366/ijhac.2025.0355](https://www.euppublishing.com/doi/abs/10.3366/ijhac.2025.0355)
 
-## 🎯 Interactive Visualization
+## Interactive Visualization
 
-**[→ Explore the Geometry of Parallelism](https://mcjkurz.github.io/parallelism-geometry/)**
+[Geometry of Parallelism](https://mcjkurz.github.io/parallelism-geometry/)
 
 See how two distinct points in 2D space can align when viewed through a third dimension—a visual metaphor for how parallel couplets find hidden semantic correspondences.
 
