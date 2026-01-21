@@ -147,12 +147,12 @@
     </div>
     
     <div class="controls">
-        <button class="btn primary" id="playBtn">Play</button>
+        <button class="btn primary" id="playBtn">Rotate</button>
         <button class="btn" id="resetBtn">Reset</button>
     </div>
     
     <p class="info" id="infoText">
-        Drag to rotate. Click Play to animate.
+        Drag to explore. Click Rotate to animate.
     </p>
     
     <div class="explanation">
@@ -308,10 +308,10 @@
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Label
+            // Label (top-right of point)
             ctx.fillStyle = '#333';
-            ctx.font = '600 13px Inter, sans-serif';
-            ctx.fillText(label, projected.x + radius + 6, projected.y + 4);
+            ctx.font = '600 14px Inter, sans-serif';
+            ctx.fillText(label, projected.x + radius + 2, projected.y - radius - 2);
         }
         
         function drawVector(point) {
@@ -398,7 +398,7 @@
             state.rotationY = INIT_ROT_Y;
             state.rotationX = INIT_ROT_X;
             state.animating = false;
-            infoText.textContent = 'Drag to rotate. Click Play to animate.';
+            infoText.textContent = 'Drag to explore. Click Rotate to animate.';
             render();
         }
         
