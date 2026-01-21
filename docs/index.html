@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallelism as Geometric Alignment</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 300;
+            color: #444;
+            margin-bottom: 0.3rem;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            color: #888;
+            font-style: italic;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .canvas-container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        #canvas:active {
+            cursor: grabbing;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 2rem;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #555;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #f5f5f5;
+            border-color: #aaa;
+        }
+        
+        .btn.primary {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+        
+        .btn.primary:hover {
+            background: #555;
+        }
+        
+        .info {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            max-width: 500px;
+        }
+        
+        .explanation {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            max-width: 550px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #444;
+        }
+        
+        .explanation p {
+            margin-bottom: 0.8rem;
+        }
+        
+        .explanation p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .explanation strong {
+            color: #333;
+        }
+        
+        footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            text-align: center;
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+        
+        footer a {
+            color: #888;
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Parallelism as Geometric Alignment</h1>
+    <p class="subtitle">Finding dimensions where meaning converges</p>
+    
+    <div class="canvas-container">
+        <canvas id="canvas" width="600" height="400"></canvas>
+    </div>
+    
+    <div class="controls">
+        <button class="btn primary" id="playBtn">Play</button>
+        <button class="btn" id="resetBtn">Reset</button>
+    </div>
+    
+    <p class="info" id="infoText">
+        Drag to rotate. Click Play to animate.
+    </p>
+    
+    <div class="explanation">
+        <p><strong>Two vectors can point in different directions yet appear aligned from a certain viewpoint.</strong></p>
+        <p>Rotating the view is like choosing a <em>query direction</em>. Identifying parallelism can be understood as finding a direction along which different vectors project similarly.</p>
+    </div>
+    
+    <footer>
+        <a href="https://github.com/mcjkurz/parallelism-geometry">parallelism-geometry</a>
+    </footer>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const infoText = document.getElementById('infoText');
+        
+        // High DPI support
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        
+        const W = rect.width;
+        const H = rect.height;
+        
+        // Two 3D points representing key vectors for characters
+        // 風 (wind) and 水 (water) - parallel characters in Chinese poetry
+        const point風 = { x: -2, y: 3, z: 2 };
+        const point水 = { x: 3, y: 2, z: 3 };
+        
+        // Initial rotation for a nice 3D view
+        const INIT_ROT_Y = -0.15;  // ~-8° clockwise around Y
+        const INIT_ROT_X = 0.2;   // ~11° clockwise around X
+        
+        // State
+        let state = {
+            rotationY: INIT_ROT_Y,
+            rotationX: INIT_ROT_X,
+            animating: false
+        };
+        
+        // 3D projection with rotation around Y and X axes
+        // Initial view: XY plane, Z+ goes into screen (depth)
+        function project(point) {
+            // Center the view
+            const cx = 0.5;
+            const cy = 2.5;
+            const cz = 2.5;
+            
+            let px = point.x - cx;
+            let py = point.y - cy;
+            let pz = point.z - cz;
+            
+            // Rotate around Y axis
+            const cosY = Math.cos(state.rotationY);
+            const sinY = Math.sin(state.rotationY);
+            let newX = px * cosY + pz * sinY;
+            let newZ = -px * sinY + pz * cosY;
+            px = newX;
+            pz = newZ;
+            
+            // Rotate around X axis
+            const cosX = Math.cos(state.rotationX);
+            const sinX = Math.sin(state.rotationX);
+            let newY = py * cosX - pz * sinX;
+            let newZ2 = py * sinX + pz * cosX;
+            py = newY;
+            pz = newZ2;
+            
+            // Orthographic projection (no perspective distortion)
+            const unit = Math.min(W, H) * 0.07;
+            
+            return {
+                x: W / 2 + px * unit,
+                y: H / 2 - py * unit,
+                z: pz
+            };
+        }
+        
+        function drawArrow(from, to) {
+            const headLen = 8;
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const angle = Math.atan2(dy, dx);
+            
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+            
+            // Draw arrowhead
+            ctx.beginPath();
+            ctx.moveTo(to.x, to.y);
+            ctx.lineTo(to.x - headLen * Math.cos(angle - Math.PI / 6), to.y - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(to.x - headLen * Math.cos(angle + Math.PI / 6), to.y - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function drawAxes() {
+            const origin = project({ x: 0, y: 0, z: 0 });
+            
+            ctx.strokeStyle = '#333';
+            ctx.fillStyle = '#333';
+            ctx.lineWidth = 1.5;
+            ctx.font = '600 13px Inter, sans-serif';
+            
+            // X axis
+            const xEnd = project({ x: 5, y: 0, z: 0 });
+            drawArrow(origin, xEnd);
+            ctx.fillText('X', xEnd.x + 8, xEnd.y + 4);
+            
+            // Y axis
+            const yEnd = project({ x: 0, y: 5, z: 0 });
+            drawArrow(origin, yEnd);
+            ctx.fillText('Y', yEnd.x + 8, yEnd.y + 4);
+            
+            // Z axis
+            const zEnd = project({ x: 0, y: 0, z: 5 });
+            drawArrow(origin, zEnd);
+            ctx.fillText('Z', zEnd.x + 8, zEnd.y + 4);
+        }
+        
+        function drawPoint(point, color, label) {
+            const projected = project(point);
+            const radius = 10;
+            
+            // Subtle glow
+            const gradient = ctx.createRadialGradient(
+                projected.x, projected.y, 0,
+                projected.x, projected.y, radius * 1.8
+            );
+            gradient.addColorStop(0, color + '40');
+            gradient.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(projected.x, projected.y, radius * 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Point
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // White border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Label
+            ctx.fillStyle = '#333';
+            ctx.font = '600 13px Inter, sans-serif';
+            ctx.fillText(label, projected.x + radius + 6, projected.y + 4);
+        }
+        
+        function drawVector(point) {
+            const origin = project({ x: 0, y: 0, z: 0 });
+            const end = project(point);
+            
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';  // Blue with alpha
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.stroke();
+        }
+        
+        function render() {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, W, H);
+            
+            drawAxes();
+            
+            // Draw vectors from origin to points (blue with alpha)
+            drawVector(point風);
+            drawVector(point水);
+            
+            // Colors for points - different shades of blue
+            const color風 = '#1e40af';  // Dark blue
+            const color水 = '#60a5fa';  // Light blue
+            
+            // Draw points (depth sorted)
+            const proj風 = project(point風);
+            const proj水 = project(point水);
+            
+            // Sort by z (draw farther points first)
+            if (proj風.z > proj水.z) {
+                drawPoint(point水, color水, '水');
+                drawPoint(point風, color風, '風');
+            } else {
+                drawPoint(point風, color風, '風');
+                drawPoint(point水, color水, '水');
+            }
+        }
+        
+        // Animation
+        function animate(duration, update) {
+            return new Promise(resolve => {
+                const start = performance.now();
+                function frame(now) {
+                    const t = Math.min(1, (now - start) / duration);
+                    // Ease in-out cubic
+                    const eased = t < 0.5 
+                        ? 4 * t * t * t 
+                        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    
+                    update(eased);
+                    render();
+                    
+                    if (t < 1) {
+                        requestAnimationFrame(frame);
+                    } else {
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(frame);
+            });
+        }
+        
+        async function play() {
+            if (state.animating) return;
+            state.animating = true;
+            
+            // Rotate 100 degrees around Y axis
+            const startRotation = state.rotationY;
+            const rotationAmount = ((2 * Math.PI) / 4) * 1.15;  // 90°
+            
+            await animate(2500, t => {
+                state.rotationY = startRotation + t * rotationAmount;
+            });
+            
+            infoText.textContent = 'From this viewpoint, the vectors appear more aligned.';
+            state.animating = false;
+        }
+        
+        function reset() {
+            state.rotationY = INIT_ROT_Y;
+            state.rotationX = INIT_ROT_X;
+            state.animating = false;
+            infoText.textContent = 'Drag to rotate. Click Play to animate.';
+            render();
+        }
+        
+        // Events
+        document.getElementById('playBtn').addEventListener('click', play);
+        document.getElementById('resetBtn').addEventListener('click', reset);
+        
+        // Mouse drag for manual exploration
+        let isDragging = false;
+        let lastX, lastY;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || state.animating) return;
+            state.rotationY += (e.clientX - lastX) * 0.01;
+            state.rotationX += (e.clientY - lastY) * 0.01;
+            state.rotationX = Math.max(-1, Math.min(1, state.rotationX));
+            lastX = e.clientX;
+            lastY = e.clientY;
+            render();
+        });
+        
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+        
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (!isDragging || state.animating) return;
+            e.preventDefault();
+            state.rotationY += (e.touches[0].clientX - lastX) * 0.01;
+            state.rotationX += (e.touches[0].clientY - lastY) * 0.01;
+            state.rotationX = Math.max(-1, Math.min(1, state.rotationX));
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            render();
+        });
+        
+        canvas.addEventListener('touchend', () => isDragging = false);
+        
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
