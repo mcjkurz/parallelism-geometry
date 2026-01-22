@@ -46,6 +46,8 @@
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             margin-bottom: 1.5rem;
+            width: 100%;
+            max-width: 600px;
         }
         
         #canvas {
@@ -136,6 +138,22 @@
         footer a:hover {
             text-decoration: underline;
         }
+        
+        @media (max-width: 640px) {
+            body {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.4rem;
+            }
+            
+            .explanation {
+                padding: 1rem;
+                margin-left: 0;
+                margin-right: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -147,18 +165,17 @@
     </div>
     
     <div class="controls">
-        <button class="btn primary" id="playBtn">Rotate</button>
+        <button class="btn primary" id="playBtn">Align</button>
         <button class="btn" id="resetBtn">Reset</button>
     </div>
     
     <p class="info" id="infoText">
-        Drag to explore. Click Rotate to animate.
+        Drag to explore. Click Align to animate.
     </p>
     
     <div class="explanation">
         <p><strong>Two word vectors can point in different directions yet appear aligned from a certain viewpoint.</strong></p>
-        <p>Rotating the view is like choosing a <em>query direction</em>. Identifying parallelism can be understood as finding a direction along which different words project similarly.</p>
-        <p>Geometrically, this means finding a query perpendicular to the dimensions where the vectors differ and thus collapsing that variation from view.</p>
+        <p>Rotating the view is like choosing a <em>query direction</em>. Identifying parallelism can be thus understood as finding a direction (a query) along which different words project similarly (respond similarly to the query).</p>
     </div>
     
     <footer>
@@ -170,17 +187,31 @@
         const ctx = canvas.getContext('2d');
         const infoText = document.getElementById('infoText');
         
-        // High DPI support
+        // Responsive canvas setup with high DPI support
         const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
+        const ASPECT_RATIO = 3 / 2;  // 600:400
         
-        const W = rect.width;
-        const H = rect.height;
+        let W, H;
+        
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const containerWidth = container.clientWidth;
+            W = containerWidth;
+            H = containerWidth / ASPECT_RATIO;
+            
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);  // Reset transform
+            ctx.scale(dpr, dpr);
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            render();
+        });
         
         // Two 3D points representing key vectors for characters
         // 風 (wind) and 水 (water) - parallel characters in Chinese poetry
@@ -201,10 +232,11 @@
         // 3D projection with rotation around Y and X axes
         // Initial view: XY plane, Z+ goes into screen (depth)
         function project(point) {
-            // Center the view
-            const cx = 0.5;
-            const cy = 2.5;
-            const cz = 2.5;
+            // Center the view around the midpoint of the scene
+            // This keeps the origin and both points roughly centered
+            const cx = 0.5;   // Midpoint x: (-2 + 3) / 2 = 0.5
+            const cy = 1.25;  // Shifted down to center the axes better
+            const cz = 1.25;  // Shifted to center depth
             
             let px = point.x - cx;
             let py = point.y - cy;
@@ -379,19 +411,78 @@
             });
         }
         
+        // Calculate the target rotation that makes the two points overlap on screen
+        function getAlignmentTarget() {
+            // Difference vector from point風 to point水
+            const dx = point水.x - point風.x;
+            const dy = point水.y - point風.y;
+            const dz = point水.z - point風.z;
+            
+            // We need to rotate so the difference vector points along the Z axis (into screen)
+            // This means after rotation, the X and Y components of the difference should be 0
+            
+            // Option 1: View along (dx, dy, dz) direction
+            // rotY makes the X component zero: dx*cos(rotY) + dz*sin(rotY) = 0
+            const rotY1 = Math.atan2(-dx, dz);
+            const dpZ1 = Math.sqrt(dx * dx + dz * dz);  // d'_z after Y rotation (positive)
+            // rotX makes the Y component zero: dy*cos(rotX) - d'_z*sin(rotX) = 0
+            const rotX1 = Math.atan2(dy, dpZ1);
+            
+            // Option 2: View from opposite direction (adds π to rotY)
+            const rotY2 = rotY1 + Math.PI;
+            // With opposite rotY, d'_z becomes negative, so rotX flips sign
+            const rotX2 = Math.atan2(-dy, dpZ1);
+            
+            // Helper to normalize angle difference to [-π, π]
+            const normalizeAngle = (a) => {
+                while (a > Math.PI) a -= 2 * Math.PI;
+                while (a < -Math.PI) a += 2 * Math.PI;
+                return a;
+            };
+            
+            // Calculate angular distance for each option
+            const diffY1 = normalizeAngle(rotY1 - state.rotationY);
+            const diffX1 = rotX1 - state.rotationX;
+            const dist1 = Math.sqrt(diffY1 * diffY1 + diffX1 * diffX1);
+            
+            const diffY2 = normalizeAngle(rotY2 - state.rotationY);
+            const diffX2 = rotX2 - state.rotationX;
+            const dist2 = Math.sqrt(diffY2 * diffY2 + diffX2 * diffX2);
+            
+            // Pick the closer option and ensure rotX stays within clamp bounds
+            let targetRotY, targetRotX;
+            if (dist1 <= dist2 && Math.abs(rotX1) <= 1) {
+                targetRotY = state.rotationY + diffY1;
+                targetRotX = rotX1;
+            } else if (Math.abs(rotX2) <= 1) {
+                targetRotY = state.rotationY + diffY2;
+                targetRotX = rotX2;
+            } else {
+                // Fallback if both rotX options are out of clamp range
+                targetRotY = state.rotationY + diffY1;
+                targetRotX = Math.max(-1, Math.min(1, rotX1));
+            }
+            
+            return { rotY: targetRotY, rotX: targetRotX };
+        }
+        
         async function play() {
             if (state.animating) return;
             state.animating = true;
             
-            // Rotate 100 degrees around Y axis
-            const startRotation = state.rotationY;
-            const rotationAmount = ((2 * Math.PI) / 4) * 1.15;  // 90°
+            // Calculate target rotation that aligns the two points
+            const target = getAlignmentTarget();
+            const startRotY = state.rotationY;
+            const startRotX = state.rotationX;
+            const deltaRotY = target.rotY - startRotY;
+            const deltaRotX = target.rotX - startRotX;
             
             await animate(2500, t => {
-                state.rotationY = startRotation + t * rotationAmount;
+                state.rotationY = startRotY + t * deltaRotY;
+                state.rotationX = startRotX + t * deltaRotX;
             });
             
-            infoText.textContent = 'From this viewpoint, the vectors appear more aligned.';
+            infoText.textContent = 'The vectors now appear perfectly aligned from this viewpoint.';
             state.animating = false;
         }
         
@@ -399,7 +490,7 @@
             state.rotationY = INIT_ROT_Y;
             state.rotationX = INIT_ROT_X;
             state.animating = false;
-            infoText.textContent = 'Drag to explore. Click Rotate to animate.';
+            infoText.textContent = 'Drag to explore. Click Align to animate.';
             render();
         }
         
